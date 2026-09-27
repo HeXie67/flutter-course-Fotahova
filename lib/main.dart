@@ -155,8 +155,8 @@ Widget task6() {
       children: [
         Image.network(
           'https://docs.flutter.dev/assets/images/dash/dash-fainting.gif',
-          width: 200,
-          height: 200,
+          width: 300,
+          height: 300,
           fit: BoxFit.cover,
         ),
         const SizedBox(height: 8),
