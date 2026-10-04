@@ -1,174 +1,302 @@
-// ЛР 1 — шесть независимых виджетов.
-
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const Lab1App());
+  runApp(const MyApp());
 }
 
-class Lab1App extends StatelessWidget {
-  const Lab1App({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('ЛР 1')),
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Task 1:',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              task1(),
-              const SizedBox(height: 4),
-              Divider(),
-              const SizedBox(height: 4),
-              Text(
-                'Task 2:',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              task2(),
+      debugShowCheckedModeBanner: false,
+      title: 'Музыкальные альбомы',
+      theme: ThemeData(
+        scaffoldBackgroundColor: const Color(0xFFAFAFAF), // Серый фон как на макете
+        useMaterial3: true,
+      ),
+      home: const MusicCatalogScreen(),
+    );
+  }
+}
 
-              const SizedBox(height: 4),
-              Divider(),
-              const SizedBox(height: 4),
-              Text(
-                'Task 3:',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+// Модель данных для альбома
+class Album {
+  final String title;
+  final String artist;
+  final int year;
+  final List<String> genres;
+  final Color coverColor;
+  final IconData categoryIcon;
+  final bool isFavorite;
+
+  const Album({
+    required this.title,
+    required this.artist,
+    required this.year,
+    required this.genres,
+    required this.coverColor,
+    required this.categoryIcon,
+    this.isFavorite = false,
+  });
+}
+
+class MusicCatalogScreen extends StatelessWidget {
+  const MusicCatalogScreen({super.key});
+
+  // Список из 8+ альбомов
+  final List<Album> albums = const [
+    Album(
+      title: 'The Dark Side of the Moon',
+      artist: 'Pink Floyd',
+      year: 1973,
+      genres: ['Прог-рок', 'Рок'],
+      coverColor: Color(0xFF2D3250),
+      categoryIcon: Icons.album,
+      isFavorite: true,
+    ),
+    Album(
+      title: 'Worldenddominator',
+      artist: 'zts',
+      year: 2009,
+      genres: ['Рок', 'Поп'],
+      coverColor: Color(0xFF2C5E3B),
+      categoryIcon: Icons.music_note,
+      isFavorite: false,
+    ),
+    Album(
+      title: 'Claire De Lune',
+      artist: 'Клод Дебюсси',
+      year: 1890,
+      genres: ['Классика'],
+      coverColor: Color(0xFF8B4513),
+      categoryIcon: Icons.graphic_eq,
+      isFavorite: true,
+    ),
+    Album(
+      title: 'Колыбельная',
+      artist: 'Петр Ильич Чайковский',
+      year: 1893,
+      genres: ['Классика'],
+      coverColor: Color(0xFF800020),
+      categoryIcon: Icons.music_note,
+      isFavorite: false,
+    ),
+    Album(
+      title: 'Nevermind',
+      artist: 'Nirvana',
+      year: 1991,
+      genres: ['Гранж', 'Альт-рок'],
+      coverColor: Color(0xFF1E3A8A),
+      categoryIcon: Icons.album,
+      isFavorite: true,
+    ),
+    Album(
+      title: 'Still with you',
+      artist: 'JungKook',
+      year: 2020,
+      genres: ['K-поп'],
+      coverColor: Color(0xFF374151),
+      categoryIcon: Icons.music_note,
+      isFavorite: false,
+    ),
+    Album(
+      title: 'A Night at the Opera',
+      artist: 'Queen',
+      year: 1975,
+      genres: ['Рок', 'Оперный рок'],
+      coverColor: Color(0xFF7C3AED),
+      categoryIcon: Icons.album,
+      isFavorite: false,
+    ),
+    Album(
+      title: 'Last Twilight',
+      artist: 'William Jakrapart',
+      year: 2024,
+      genres: ['T-поп'],
+      coverColor: Color(0xFF0F766E),
+      categoryIcon: Icons.graphic_eq,
+      isFavorite: true,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Каталог альбомов'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
               ),
-              task3(),
-              const SizedBox(height: 4),
-              Divider(),
-              const SizedBox(height: 4),
-              Text(
-                'Task 4:',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Каталог альбомов',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${albums.length} альбомов в каталоге',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               ),
-              task4(),
-              const SizedBox(height: 4),
-              Divider(),
-              const SizedBox(height: 4),
-              Text(
-                'Task 5:',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              task5(),
-              const SizedBox(height: 4),
-              Divider(),
-              const SizedBox(height: 4),
-              Text(
-                'Task 6:',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              task6(),
-            ],
-          ),
+            ),
+            const SizedBox(height: 2),
+
+            // Список карточек
+            ...albums.map((album) => AlbumCard(album: album)),
+          ],
         ),
       ),
     );
   }
 }
 
-// 1. Заголовок — Text, крупный жирный текст чёрного цвета, обрезается в одну строку, если не помещается.
-Widget task1() {
-  return const Text(
-    'Это очень длинный заголовок, который должен обрезаться в одну строку',
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-    style: TextStyle(
-      fontSize: 28,
-      fontWeight: FontWeight.bold,
-      color: Colors.black,
-    ),
-  );
-}
+// Виджет отдельной карточки альбома
+class AlbumCard extends StatelessWidget {
+  final Album album;
 
-// 2. Подпись — небольшой, нежирный курсивный текст белого цвета, обрезается в две строки.
-// Также реализуйте подложку из тёмно-серого контейнера с закруглениями, чтобы текст было видно
-Widget task2() {
-  return Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.grey[800],
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: const Text(
-      'Это подпись к фотографии, которая может быть достаточно длинной и занимать несколько строк, но обрезается после двух строк',
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 14,
-        fontStyle: FontStyle.italic,
+  const AlbumCard({
+    super.key,
+    required this.album,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
       ),
-    ),
-  );
-}
-
-// 3. Иконка — любая Icon на ваш вкус, с применением цвета и размером.
-Widget task3() {
-  return const Icon(
-    Icons.star,
-    color: Colors.amber,
-    size: 48,
-  );
-}
-
-// 4. Кнопка с иконкой избранного — большая иконка сердца красного цвета без фона.
-// При нажатии пишет в консоль "Вы добавили в избранное"
-Widget task4() {
-  return IconButton(
-    iconSize: 56,
-    color: Colors.red,
-    icon: const Icon(Icons.favorite),
-    onPressed: () {
-      print('Вы добавили в избранное');
-    },
-  );
-}
-
-// 5. Кнопка «Подробнее» — кнопка с текстом и обводкой, при нажатии пишет в консоль "Узнать детали"
-Widget task5() {
-  return OutlinedButton(
-    onPressed: () {
-      print('Узнать детали');
-    },
-    child: const Text('Подробнее'),
-  );
-}
-
-// 6. Изображение в стиле Polaroid
-Widget task6() {
-  return Container(
-    padding: const EdgeInsets.all(8),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border.all(color: Colors.black, width: 2),
-      borderRadius: BorderRadius.circular(4),
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Image.network(
-          'https://docs.flutter.dev/assets/images/dash/dash-fainting.gif',
-          width: 200,
-          height: 200,
-          fit: BoxFit.cover,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Polaroid',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.black,
-            fontStyle: FontStyle.italic,
+      // 1. Требование: Row - вся карточка
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              Container(
+                width: 90,
+                height: 110,
+                decoration: BoxDecoration(
+                  color: album.coverColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Icon(
+                    album.categoryIcon, // Иконка категории
+                    color: Colors.white.withOpacity(0.8),
+                    size: 48,
+                  ),
+                ),
+              ),
+              // Иконка лайка поверх обложки в правом верхнем углу
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    album.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    size: 16,
+                    color: album.isFavorite ? Colors.red : Colors.grey,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(width: 12),
+
+          Expanded(
+            // 4. Требование: Column - заголовок, исполнитель и теги сверху вниз
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Название альбома с предотвращением переполнения (overflow)
+                Text(
+                  album.title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+
+                // Подпись: Исполнитель и год
+                Text(
+                  '${album.artist} · ${album.year}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+
+                // Теги жанров
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: album.genres
+                      .map(
+                        (genre) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE0F2FE),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            genre,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF0369A1),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
