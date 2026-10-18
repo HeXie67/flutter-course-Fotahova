@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../domain/entities/album.dart';
+import 'album_category_ui.dart';
 
 class AlbumCard extends StatelessWidget {
   final Album album;
@@ -32,13 +34,13 @@ class AlbumCard extends StatelessWidget {
                 width: 90,
                 height: 110,
                 decoration: BoxDecoration(
-                  color: album.coverColor,
+                  color: colorFromHex(album.coverColor),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
                   child: Icon(
-                    album.categoryIcon,
-                    color: Colors.white.withOpacity(0.8),
+                    album.category.icon,
+                    color: Colors.white.withAlpha(204),
                     size: 48,
                   ),
                 ),
@@ -83,23 +85,18 @@ class AlbumCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  album.subtitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey,
+                if (album.subtitle.isNotEmpty)
+                  Text(
+                    album.subtitle,
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
                 if (album.description != null) ...[
                   const SizedBox(height: 4),
                   Text(
                     album.description!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'ui/screens/catalog_screen.dart'; // Импортируем ваш новый экран
+import 'ui/screens/catalog_screen.dart'; 
 
 void main() {
   runApp(const MyApp());
@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFAFAFAF), // Серый фон
         useMaterial3: true,
       ),
-      home: const MusicCatalogScreen(), // Запускаем экран из catalog_screen.dart
+      home: const MusicCatalogScreen(), 
     );
   }
 }
