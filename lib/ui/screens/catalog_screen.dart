@@ -1,15 +1,10 @@
-import 'dart:convert';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import '../../domain/entities/album.dart';
 import '../widgets/album_card.dart';
 import '../widgets/album_category_ui.dart';
-
-// Базовый адрес API и имя ресурса
-const baseUrl = 'https://6ad4556c59dd78397bbc6c4f.mockapi.io';
-const resource = 'music';
 
 class MusicCatalogScreen extends StatefulWidget {
   const MusicCatalogScreen({super.key});
@@ -19,14 +14,13 @@ class MusicCatalogScreen extends StatefulWidget {
 }
 
 class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
-  // Лайки хранятся локально по id. Сначала пусто, счётчик начинается с 0
-  final Set<int> _likedIds = {};
+  // Лайки хранятся локально по id документа
+  final Set<String> _likedIds = {};
   bool _onlyFavorites = false;
 
-  // Данные с сервера
-  List<Album> _albums = [];
-  bool _isLoading = true;
-  String? _error;
+  // Поток каталога из Firestore (поле State, не внутри build)
+  final _albumsStream =
+      FirebaseFirestore.instance.collection('albums').snapshots();
 
   // Форма добавления
   bool _showForm = true;
@@ -39,14 +33,7 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
   final _genresController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _loadAlbums(); // загрузка при открытии экрана
-  }
-
-  @override
   void dispose() {
-    // Контроллеры обязательно освобождаем
     _titleController.dispose();
     _subtitleController.dispose();
     _descriptionController.dispose();
@@ -54,49 +41,15 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
     super.dispose();
   }
 
-  // ---------- GET: загрузка каталога ----------
-  Future<void> _loadAlbums() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/$resource'));
-      if (response.statusCode != 200) {
-        throw Exception('Статус ${response.statusCode}');
-      }
-      // utf8.decode, чтобы русский текст не превращался в кракозябры
-      final list = jsonDecode(utf8.decode(response.bodyBytes)) as List;
-      final albums = list
-          .map((e) => Album.fromJson(e as Map<String, dynamic>))
-          .toList();
-
-      if (!mounted) return;
-      setState(() {
-        _albums = albums;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Не удалось загрузить каталог: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  // ---------- POST: добавление альбома ----------
+  // ---------- Добавление альбома в Firestore ----------
   Future<void> _createAlbum() async {
     final title = _titleController.text.trim();
 
-    // Обязательное поле одно: название. Пустое не отправляем
     if (title.isEmpty) {
       setState(() => _formError = 'Введите название');
       return;
     }
 
-    // Необязательные поля: если пусто, значения по умолчанию
     final subtitle = _subtitleController.text.trim();
     final description = _descriptionController.text.trim();
     final genres = _genresController.text
@@ -106,7 +59,7 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
         .toList();
 
     final newAlbum = Album(
-      id: 0, // настоящий id выдаст сервер, в toJson он не попадает
+      id: '', // настоящий id выдаст Firestore, в toJson он не попадает
       title: title,
       subtitle: subtitle,
       category: _selectedCategory,
@@ -121,23 +74,13 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
     });
 
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/$resource'),
-        headers: {'Content-Type': 'application/json; charset=UTF-8'},
-        body: jsonEncode(newAlbum.toJson()),
-      );
-      if (response.statusCode != 201) {
-        throw Exception('Статус ${response.statusCode}');
-      }
-
-      // Новый элемент берём из ответа сервера (в нём уже есть id)
-      final created = Album.fromJson(
-        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
-      );
+      await FirebaseFirestore.instance
+          .collection('albums')
+          .add(newAlbum.toJson());
+      // В список вручную ничего не добавляем: StreamBuilder обновится сам
 
       if (!mounted) return;
       setState(() {
-        _albums = [created, ..._albums]; // в НАЧАЛО списка
         _isSaving = false;
         _clearForm();
       });
@@ -145,7 +88,7 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
       if (!mounted) return;
       setState(() {
         _isSaving = false;
-        _formError = 'Не удалось отправить альбом. Попробуйте ещё раз';
+        _formError = 'Не удалось отправить альбом: $e';
       });
     }
   }
@@ -159,7 +102,7 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
     _formError = null;
   }
 
-  void _toggleLike(int id) {
+  void _toggleLike(String id) {
     setState(() {
       if (_likedIds.contains(id)) {
         _likedIds.remove(id);
@@ -170,7 +113,7 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
   }
 
   // ---------- Шапка: заголовок, счётчики, фильтр ----------
-  Widget _buildHeader() {
+  Widget _buildHeader(int total) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16.0),
@@ -223,7 +166,7 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Всего: ${_albums.length}',
+                'Всего: $total',
                 style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
               Text(
@@ -243,8 +186,6 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
 
   // ---------- Форма добавления ----------
   Widget _buildForm() {
-    // Ограничиваем высоту формы, чтобы вместе с клавиатурой она не
-    // выдавливала список и не вызывала overflow: внутри форма прокручивается
     final media = MediaQuery.of(context);
     final maxHeight = (media.size.height - media.viewInsets.bottom) * 0.35;
 
@@ -261,7 +202,6 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Обязательное поле + кнопка. TextField в Row, значит Expanded
               Row(
                 children: [
                   Expanded(
@@ -294,7 +234,6 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
                   style: const TextStyle(color: Colors.redAccent),
                 ),
               ],
-              // Необязательные поля сворачиваются
               ExpansionTile(
                 title: const Text('Дополнительно'),
                 tilePadding: EdgeInsets.zero,
@@ -355,31 +294,6 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
     );
   }
 
-  // ---------- Ошибка загрузки ----------
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _loadAlbums,
-              child: const Text('Обновить'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------- Заглушка пустого списка ----------
   Widget _buildEmpty() {
     return Align(
       alignment: Alignment.topCenter,
@@ -401,55 +315,79 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Фильтрация списка через .where()
-    final displayedAlbums = _onlyFavorites
-        ? _albums.where((album) => _likedIds.contains(album.id)).toList()
-        : _albums;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Каталог альбомов'),
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // Кнопка "+" / "×" показывает и скрывает форму
           IconButton(
             tooltip: _showForm ? 'Скрыть форму' : 'Показать форму',
             icon: Icon(_showForm ? Icons.close : Icons.add),
             onPressed: () => setState(() => _showForm = !_showForm),
           ),
+          IconButton(
+            tooltip: 'Выйти',
+            icon: const Icon(Icons.logout),
+            onPressed: () => FirebaseAuth.instance.signOut(),
+          ),
         ],
       ),
       body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? _buildError()
-                : Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        _buildHeader(),
-                        if (_showForm) _buildForm(),
-                        // Список занимает всё оставшееся место
-                        Expanded(
-                          child: displayedAlbums.isEmpty
-                              ? _buildEmpty()
-                              : ListView.builder(
-                                  itemCount: displayedAlbums.length,
-                                  itemBuilder: (context, index) {
-                                    final album = displayedAlbums[index];
-                                    return AlbumCard(
-                                      album: album,
-                                      isLiked: _likedIds.contains(album.id),
-                                      onLikeTap: () => _toggleLike(album.id),
-                                    );
-                                  },
-                                ),
-                        ),
-                      ],
-                    ),
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _albumsStream,
+          builder: (context, snapshot) {
+            // Ошибка: показываем текст ошибки
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Ошибка: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16),
                   ),
+                ),
+              );
+            }
+
+            // Загрузка
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final albums =
+                snapshot.data!.docs.map(Album.fromFirestore).toList();
+            final displayedAlbums = _onlyFavorites
+                ? albums.where((a) => _likedIds.contains(a.id)).toList()
+                : albums;
+
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  _buildHeader(albums.length),
+                  if (_showForm) _buildForm(),
+                  Expanded(
+                    child: displayedAlbums.isEmpty
+                        ? _buildEmpty()
+                        : ListView.builder(
+                            itemCount: displayedAlbums.length,
+                            itemBuilder: (context, index) {
+                              final album = displayedAlbums[index];
+                              return AlbumCard(
+                                album: album,
+                                isLiked: _likedIds.contains(album.id),
+                                onLikeTap: () => _toggleLike(album.id),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
