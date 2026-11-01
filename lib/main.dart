@@ -1,8 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'firebase_options.dart';
+import 'ui/bloc/albums_bloc.dart';
+import 'ui/bloc/albums_event.dart';
 import 'ui/screens/catalog_screen.dart';
 import 'ui/screens/login_screen.dart';
 
@@ -43,7 +46,11 @@ class AuthGate extends StatelessWidget {
           );
         }
         return snapshot.hasData
-            ? const MusicCatalogScreen()
+            ? BlocProvider(
+                // Bloc создаётся и сразу запускает первую загрузку
+                create: (_) => AlbumsBloc()..add(AlbumsLoadRequested()),
+                child: const MusicCatalogScreen(),
+              )
             : const LoginScreen();
       },
     );
