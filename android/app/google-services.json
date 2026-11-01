@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "797107962902",
+    "project_id": "catalog-fotahova",
+    "storage_bucket": "catalog-fotahova.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:797107962902:android:0fa90a5fb9d217270ee137",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC-PjmKH6_UF0Iuwg5YGmIPLtJem5UN5Ko"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
