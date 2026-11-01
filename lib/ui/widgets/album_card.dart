@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/entities/album.dart';
 import 'album_category_ui.dart';
+import 'like_button.dart';
 
 class AlbumCard extends StatelessWidget {
   final Album album;
@@ -30,39 +31,37 @@ class AlbumCard extends StatelessWidget {
           // Обложка и сердечко
           Stack(
             children: [
-              Container(
-                width: 90,
-                height: 110,
-                decoration: BoxDecoration(
-                  color: colorFromHex(album.coverColor),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Icon(
-                    album.category.icon,
-                    color: Colors.white.withAlpha(204),
-                    size: 48,
+              // Hero: обложка плавно "перелетает" на экран деталей
+              Hero(
+                tag: 'cover-${album.id}',
+                child: Container(
+                  width: 90,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    color: colorFromHex(album.coverColor),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      album.category.icon,
+                      color: Colors.white.withAlpha(204),
+                      size: 48,
+                    ),
                   ),
                 ),
               ),
               Positioned(
                 top: 6,
                 right: 6,
-                child: InkWell(
-                  onTap: onLikeTap,
-                  borderRadius: BorderRadius.circular(13),
-                  child: Container(
-                    width: 26,
-                    height: 26,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isLiked ? Icons.favorite : Icons.favorite_border,
-                      size: 16,
-                      color: isLiked ? Colors.red : Colors.grey,
-                    ),
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: LikeButton(isLiked: isLiked, onTap: onLikeTap),
                   ),
                 ),
               ),
