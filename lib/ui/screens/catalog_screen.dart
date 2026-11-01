@@ -1,8 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/album.dart';
+import '../bloc/albums_bloc.dart';
+import '../bloc/albums_event.dart';
+import '../bloc/albums_state.dart';
 import '../widgets/album_card.dart';
 import '../widgets/album_category_ui.dart';
 
@@ -14,13 +18,9 @@ class MusicCatalogScreen extends StatefulWidget {
 }
 
 class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
-  // Лайки хранятся локально по id документа
+  // Лайки хранятся локально по id документа (на setState, как разрешено в ДЗ)
   final Set<String> _likedIds = {};
   bool _onlyFavorites = false;
-
-  // Поток каталога из Firestore (поле State, не внутри build)
-  final _albumsStream =
-      FirebaseFirestore.instance.collection('albums').snapshots();
 
   // Форма добавления
   bool _showForm = true;
@@ -42,6 +42,7 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
   }
 
   // ---------- Добавление альбома в Firestore ----------
+  // Это запись, а не чтение каталога. Список обновится сам через Bloc
   Future<void> _createAlbum() async {
     final title = _titleController.text.trim();
 
@@ -77,7 +78,7 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
       await FirebaseFirestore.instance
           .collection('albums')
           .add(newAlbum.toJson());
-      // В список вручную ничего не добавляем: StreamBuilder обновится сам
+      // В список вручную ничего не добавляем: Bloc получит новые данные сам
 
       if (!mounted) return;
       setState(() {
@@ -294,6 +295,7 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
     );
   }
 
+  // ---------- Пустой список ----------
   Widget _buildEmpty() {
     return Align(
       alignment: Alignment.topCenter,
@@ -309,6 +311,65 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
           'Ничего не нашлось',
           style: TextStyle(fontSize: 16, color: Colors.grey),
         ),
+      ),
+    );
+  }
+
+  // ---------- Ошибка: текст и кнопка "Обновить" ----------
+  Widget _buildError(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              // Заново запускает загрузку через Bloc
+              onPressed: () {
+                context.read<AlbumsBloc>().add(AlbumsLoadRequested());
+              },
+              child: const Text('Обновить'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------- Данные: шапка, форма и список ----------
+  Widget _buildContent(List<Album> albums) {
+    final displayedAlbums = _onlyFavorites
+        ? albums.where((a) => _likedIds.contains(a.id)).toList()
+        : albums;
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          _buildHeader(albums.length),
+          if (_showForm) _buildForm(),
+          Expanded(
+            child: displayedAlbums.isEmpty
+                ? _buildEmpty()
+                : ListView.builder(
+                    itemCount: displayedAlbums.length,
+                    itemBuilder: (context, index) {
+                      final album = displayedAlbums[index];
+                      return AlbumCard(
+                        album: album,
+                        isLiked: _likedIds.contains(album.id),
+                        onLikeTap: () => _toggleLike(album.id),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -334,58 +395,15 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
         ],
       ),
       body: SafeArea(
-        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _albumsStream,
-          builder: (context, snapshot) {
-            // Ошибка: показываем текст ошибки
-            if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Ошибка: ${snapshot.error}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-              );
-            }
-
-            // Загрузка
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final albums =
-                snapshot.data!.docs.map(Album.fromFirestore).toList();
-            final displayedAlbums = _onlyFavorites
-                ? albums.where((a) => _likedIds.contains(a.id)).toList()
-                : albums;
-
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  _buildHeader(albums.length),
-                  if (_showForm) _buildForm(),
-                  Expanded(
-                    child: displayedAlbums.isEmpty
-                        ? _buildEmpty()
-                        : ListView.builder(
-                            itemCount: displayedAlbums.length,
-                            itemBuilder: (context, index) {
-                              final album = displayedAlbums[index];
-                              return AlbumCard(
-                                album: album,
-                                isLiked: _likedIds.contains(album.id),
-                                onLikeTap: () => _toggleLike(album.id),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            );
+        // Экран строится по состоянию Bloc
+        child: BlocBuilder<AlbumsBloc, AlbumsState>(
+          builder: (context, state) {
+            return switch (state) {
+              AlbumsLoadInProgress() =>
+                const Center(child: CircularProgressIndicator()),
+              AlbumsLoadFailure(:final message) => _buildError(message),
+              AlbumsLoadSuccess(:final albums) => _buildContent(albums),
+            };
           },
         ),
       ),
