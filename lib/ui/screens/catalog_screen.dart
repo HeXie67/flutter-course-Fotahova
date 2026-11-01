@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,369 +6,36 @@ import '../../domain/entities/album.dart';
 import '../bloc/albums_bloc.dart';
 import '../bloc/albums_event.dart';
 import '../bloc/albums_state.dart';
+import '../widgets/add_album_sheet.dart';
 import '../widgets/album_card.dart';
-import '../widgets/album_category_ui.dart';
+import 'album_details_screen.dart';
 
-class MusicCatalogScreen extends StatefulWidget {
+class MusicCatalogScreen extends StatelessWidget {
   const MusicCatalogScreen({super.key});
 
-  @override
-  State<MusicCatalogScreen> createState() => _MusicCatalogScreenState();
-}
-
-class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
-  // Лайки хранятся локально по id документа (на setState, как разрешено в ДЗ)
-  final Set<String> _likedIds = {};
-  bool _onlyFavorites = false;
-
-  // Форма добавления
-  bool _showForm = true;
-  bool _isSaving = false;
-  String? _formError;
-  AlbumCategory _selectedCategory = AlbumCategory.rock;
-  final _titleController = TextEditingController();
-  final _subtitleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _genresController = TextEditingController();
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _subtitleController.dispose();
-    _descriptionController.dispose();
-    _genresController.dispose();
-    super.dispose();
-  }
-
-  // ---------- Добавление альбома в Firestore ----------
-  // Это запись, а не чтение каталога. Список обновится сам через Bloc
-  Future<void> _createAlbum() async {
-    final title = _titleController.text.trim();
-
-    if (title.isEmpty) {
-      setState(() => _formError = 'Введите название');
-      return;
-    }
-
-    final subtitle = _subtitleController.text.trim();
-    final description = _descriptionController.text.trim();
-    final genres = _genresController.text
-        .split(',')
-        .map((g) => g.trim())
-        .where((g) => g.isNotEmpty)
-        .toList();
-
-    final newAlbum = Album(
-      id: '', // настоящий id выдаст Firestore, в toJson он не попадает
-      title: title,
-      subtitle: subtitle,
-      category: _selectedCategory,
-      description: description.isEmpty ? null : description,
-      coverColor: _selectedCategory.defaultCoverHex,
-      genres: genres,
-    );
-
-    setState(() {
-      _isSaving = true;
-      _formError = null;
-    });
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('albums')
-          .add(newAlbum.toJson());
-      // В список вручную ничего не добавляем: Bloc получит новые данные сам
-
-      if (!mounted) return;
-      setState(() {
-        _isSaving = false;
-        _clearForm();
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isSaving = false;
-        _formError = 'Не удалось отправить альбом: $e';
-      });
-    }
-  }
-
-  void _clearForm() {
-    _titleController.clear();
-    _subtitleController.clear();
-    _descriptionController.clear();
-    _genresController.clear();
-    _selectedCategory = AlbumCategory.rock;
-    _formError = null;
-  }
-
-  void _toggleLike(String id) {
-    setState(() {
-      if (_likedIds.contains(id)) {
-        _likedIds.remove(id);
-      } else {
-        _likedIds.add(id);
-      }
-    });
-  }
-
-  // ---------- Шапка: заголовок, счётчики, фильтр ----------
-  Widget _buildHeader(int total) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Каталог альбомов',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  setState(() => _onlyFavorites = !_onlyFavorites);
-                },
-                icon: Icon(
-                  _onlyFavorites ? Icons.filter_alt : Icons.filter_alt_outlined,
-                  size: 18,
-                  color: _onlyFavorites ? Colors.white : Colors.black,
-                ),
-                label: Text(
-                  _onlyFavorites ? 'Все' : 'Избранные',
-                  style: TextStyle(
-                    color: _onlyFavorites ? Colors.white : Colors.black,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      _onlyFavorites ? Colors.redAccent : Colors.grey[200],
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Всего: $total',
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              Text(
-                'В избранном: ${_likedIds.length}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.redAccent,
-                ),
-              ),
-            ],
-          ),
-        ],
+  void _openAddSheet(BuildContext context) {
+    // Bottom sheet живёт вне BlocProvider, поэтому берём Bloc заранее
+    final bloc = context.read<AlbumsBloc>();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => AddAlbumSheet(
+        onSubmit: (album) => bloc.add(AlbumAdded(album)),
       ),
     );
   }
 
-  // ---------- Форма добавления ----------
-  Widget _buildForm() {
-    final media = MediaQuery.of(context);
-    final maxHeight = (media.size.height - media.viewInsets.bottom) * 0.35;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Название',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: _isSaving ? null : _createAlbum,
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Отправить'),
-                  ),
-                ],
-              ),
-              if (_formError != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _formError!,
-                  style: const TextStyle(color: Colors.redAccent),
-                ),
-              ],
-              ExpansionTile(
-                title: const Text('Дополнительно'),
-                tilePadding: EdgeInsets.zero,
-                shape: const Border(),
-                collapsedShape: const Border(),
-                childrenPadding: const EdgeInsets.only(bottom: 8),
-                children: [
-                  TextField(
-                    controller: _subtitleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Исполнитель · год',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Описание',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _genresController,
-                    decoration: const InputDecoration(
-                      labelText: 'Жанры через запятую',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 8,
-                      children: AlbumCategory.values
-                          .map(
-                            (category) => ChoiceChip(
-                              label: Text(category.label),
-                              selected: _selectedCategory == category,
-                              onSelected: (_) {
-                                setState(() => _selectedCategory = category);
-                              },
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+  void _openDetails(BuildContext context, Album album) {
+    // Новый экран тоже вне BlocProvider: передаём тот же Bloc через .value,
+    // иначе лайки в списке и в деталях разошлись бы
+    final bloc = context.read<AlbumsBloc>();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider.value(
+          value: bloc,
+          child: AlbumDetailsScreen(albumId: album.id),
         ),
-      ),
-    );
-  }
-
-  // ---------- Пустой список ----------
-  Widget _buildEmpty() {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(32.0),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Text(
-          'Ничего не нашлось',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      ),
-    );
-  }
-
-  // ---------- Ошибка: текст и кнопка "Обновить" ----------
-  Widget _buildError(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              // Заново запускает загрузку через Bloc
-              onPressed: () {
-                context.read<AlbumsBloc>().add(AlbumsLoadRequested());
-              },
-              child: const Text('Обновить'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------- Данные: шапка, форма и список ----------
-  Widget _buildContent(List<Album> albums) {
-    final displayedAlbums = _onlyFavorites
-        ? albums.where((a) => _likedIds.contains(a.id)).toList()
-        : albums;
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          _buildHeader(albums.length),
-          if (_showForm) _buildForm(),
-          Expanded(
-            child: displayedAlbums.isEmpty
-                ? _buildEmpty()
-                : ListView.builder(
-                    itemCount: displayedAlbums.length,
-                    itemBuilder: (context, index) {
-                      final album = displayedAlbums[index];
-                      return AlbumCard(
-                        album: album,
-                        isLiked: _likedIds.contains(album.id),
-                        onLikeTap: () => _toggleLike(album.id),
-                      );
-                    },
-                  ),
-          ),
-        ],
       ),
     );
   }
@@ -383,9 +49,9 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            tooltip: _showForm ? 'Скрыть форму' : 'Показать форму',
-            icon: Icon(_showForm ? Icons.close : Icons.add),
-            onPressed: () => setState(() => _showForm = !_showForm),
+            tooltip: 'Добавить альбом',
+            icon: const Icon(Icons.add),
+            onPressed: () => _openAddSheet(context),
           ),
           IconButton(
             tooltip: 'Выйти',
@@ -395,16 +61,223 @@ class _MusicCatalogScreenState extends State<MusicCatalogScreen> {
         ],
       ),
       body: SafeArea(
-        // Экран строится по состоянию Bloc
-        child: BlocBuilder<AlbumsBloc, AlbumsState>(
+        child: BlocConsumer<AlbumsBloc, AlbumsState>(
+          // SnackBar только когда пришло новое сообщение
+          listenWhen: (previous, current) =>
+              current is AlbumsLoadSuccess && current.message != null,
+          listener: (context, state) {
+            final message = (state as AlbumsLoadSuccess).message!;
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(message)));
+          },
           builder: (context, state) {
             return switch (state) {
               AlbumsLoadInProgress() =>
                 const Center(child: CircularProgressIndicator()),
-              AlbumsLoadFailure(:final message) => _buildError(message),
-              AlbumsLoadSuccess(:final albums) => _buildContent(albums),
+              AlbumsLoadFailure(:final message) => _ErrorView(message: message),
+              AlbumsLoadSuccess() => _Content(
+                  state: state,
+                  onAlbumTap: (album) => _openDetails(context, album),
+                ),
             };
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _Content extends StatelessWidget {
+  const _Content({required this.state, required this.onAlbumTap});
+
+  final AlbumsLoadSuccess state;
+  final void Function(Album album) onAlbumTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final albums = state.visibleAlbums;
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _Header(state: state),
+          Expanded(
+            child: albums.isEmpty
+                ? _EmptyView(text: _emptyText(state))
+                : ListView.builder(
+                    itemCount: albums.length,
+                    itemBuilder: (context, index) {
+                      final album = albums[index];
+                      return GestureDetector(
+                        onTap: () => onAlbumTap(album),
+                        child: AlbumCard(
+                          album: album,
+                          isLiked: state.likedIds.contains(album.id),
+                          onLikeTap: () => context
+                              .read<AlbumsBloc>()
+                              .add(AlbumLikeToggled(album.id)),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _emptyText(AlbumsLoadSuccess s) {
+    if (s.query.trim().isNotEmpty) return 'Ничего не найдено';
+    if (s.onlyFavorites) return 'В избранном пока пусто';
+    return 'Каталог пока пуст';
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.state});
+
+  final AlbumsLoadSuccess state;
+
+  @override
+  Widget build(BuildContext context) {
+    final onlyFavorites = state.onlyFavorites;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Каталог альбомов',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () =>
+                    context.read<AlbumsBloc>().add(FavoritesFilterToggled()),
+                icon: Icon(
+                  onlyFavorites ? Icons.filter_alt : Icons.filter_alt_outlined,
+                  size: 18,
+                  color: onlyFavorites ? Colors.white : Colors.black,
+                ),
+                label: Text(
+                  onlyFavorites ? 'Все' : 'Избранные',
+                  style: TextStyle(
+                    color: onlyFavorites ? Colors.white : Colors.black,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      onlyFavorites ? Colors.redAccent : Colors.grey[200],
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Поиск по названию во время ввода, без учёта регистра
+          TextField(
+            onChanged: (value) =>
+                context.read<AlbumsBloc>().add(SearchChanged(value)),
+            decoration: const InputDecoration(
+              hintText: 'Поиск по названию',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Всего: ${state.albums.length}',
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              Text(
+                'В избранном: ${state.favoritesCount}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.redAccent,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyView extends StatelessWidget {
+  const _EmptyView({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () =>
+                  context.read<AlbumsBloc>().add(AlbumsLoadRequested()),
+              child: const Text('Обновить'),
+            ),
+          ],
         ),
       ),
     );

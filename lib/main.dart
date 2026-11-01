@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'data/albums_repository.dart';
 import 'firebase_options.dart';
 import 'ui/bloc/albums_bloc.dart';
 import 'ui/bloc/albums_event.dart';
@@ -45,13 +46,16 @@ class AuthGate extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        return snapshot.hasData
-            ? BlocProvider(
-                // Bloc создаётся и сразу запускает первую загрузку
-                create: (_) => AlbumsBloc()..add(AlbumsLoadRequested()),
-                child: const MusicCatalogScreen(),
-              )
-            : const LoginScreen();
+        final user = snapshot.data;
+        if (user == null) return const LoginScreen();
+
+        return BlocProvider(
+          // key: у другого аккаунта создаётся новый Bloc со своим избранным
+          key: ValueKey(user.uid),
+          create: (_) => AlbumsBloc(AlbumsRepository(uid: user.uid))
+            ..add(AlbumsLoadRequested()),
+          child: const MusicCatalogScreen(),
+        );
       },
     );
   }

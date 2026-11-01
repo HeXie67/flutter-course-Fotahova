@@ -39,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Переход на каталог сделает AuthGate сам
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.code); // виден на экране
+      setState(() => _error = _authMessage(e.code)); // понятный текст на экране
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -95,7 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : () => _submit(register: false),
+                    onPressed:
+                        _isLoading ? null : () => _submit(register: false),
                     child: _isLoading
                         ? const SizedBox(
                             width: 18,
@@ -106,7 +107,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton(
-                    onPressed: _isLoading ? null : () => _submit(register: true),
+                    onPressed:
+                        _isLoading ? null : () => _submit(register: true),
                     child: const Text('Зарегистрироваться'),
                   ),
                 ],
@@ -116,5 +118,27 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+}
+
+// Код ошибки Firebase -> понятный текст для пользователя
+String _authMessage(String code) {
+  switch (code) {
+    case 'invalid-credential':
+    case 'wrong-password':
+    case 'user-not-found':
+      return 'Неверный email или пароль';
+    case 'email-already-in-use':
+      return 'Этот email уже зарегистрирован';
+    case 'weak-password':
+      return 'Слишком короткий пароль (минимум 6 символов)';
+    case 'invalid-email':
+      return 'Некорректный email';
+    case 'too-many-requests':
+      return 'Слишком много попыток, попробуйте позже';
+    case 'network-request-failed':
+      return 'Нет подключения к интернету';
+    default:
+      return 'Не удалось выполнить вход ($code)';
   }
 }
